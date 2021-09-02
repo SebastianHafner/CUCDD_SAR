@@ -35,7 +35,7 @@ class ChangeDatingMethod(ChangeDetectionMethod):
 class StepFunctionModel(ChangeDatingMethod):
 
     def __init__(self, error_multiplier: int = 3, min_prob_diff: float = 0.2, min_segment_length: int = 2,
-                 improve_last: bool = False, improve_first: bool = False, noise_reduction: bool = True):
+                 noise_reduction: bool = True):
         super().__init__('stepfunction')
         self.fitted_dataset = None
         self.fitted_aoi = None
@@ -47,8 +47,6 @@ class StepFunctionModel(ChangeDatingMethod):
         self.error_multiplier = error_multiplier
         self.min_prob_diff = min_prob_diff
         self.min_segment_length = min_segment_length
-        self.improve_last = improve_last
-        self.improve_first = improve_first
         self.noise_reduction = noise_reduction
 
     def _fit(self, dataset: str, aoi_id: str):
@@ -67,21 +65,6 @@ class StepFunctionModel(ChangeDatingMethod):
         mean_prob = np.mean(probs_cube, axis=-1)
         pred_prob_stable = np.repeat(mean_prob[:, :, np.newaxis], len(timeseries), axis=-1)
         error_stable = self._mse(probs_cube, pred_prob_stable)
-
-        if self.improve_first:
-            coefficients = self.exponential_distribution(np.arange(self.length_ts))
-            probs_cube = probs_cube.transpose((2, 0, 1))
-            probs_cube = coefficients[:, np.newaxis, np.newaxis] * probs_cube
-            probs_exp = np.sum(probs_cube, axis=0)
-            probs_cube[0, :, :] = probs_exp
-            probs_cube = probs_cube.transpose((1, 2, 0))
-
-        if self.improve_last:
-            coefficients = self.exponential_distribution(np.arange(self.length_ts))[::-1]
-            probs_cube_exp = coefficients[:, np.newaxis, np.newaxis] * probs_cube.transpose((2, 0, 1))
-            probs_exp = np.sum(probs_cube_exp, axis=0)
-            probs_cube[:, :, -1] = probs_exp
-
 
         # break point detection
         for i in range(self.min_segment_length, len(timeseries) - self.min_segment_length):

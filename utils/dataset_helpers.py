@@ -96,7 +96,7 @@ def date2index(date: list) -> int:
 
 
 # include masked data is only
-def get_timeseries(dataset: str, aoi_id: str, include_masked_data: bool = False, ignore_bad_data: bool = True) -> list:
+def get_timeseries(dataset: str, aoi_id: str, include_masked_data: bool = True, ignore_bad_data: bool = True) -> list:
     aoi_md = aoi_metadata(dataset, aoi_id)
 
     timeseries = [[y, m, mask, s1, s2] for y, m, mask, s1, s2 in aoi_md if s1]

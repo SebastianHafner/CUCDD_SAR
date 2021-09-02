@@ -3,63 +3,18 @@ from utils import geofiles, dataset_helpers, config
 import numpy as np
 
 
-def input_name() -> str:
-    return f'{config.input_type()}_{config.input_sensor()}'
-
-
-def load_input(dataset: str, aoi_id: str, year: int, month: int) -> np.ndarray:
-    if config.input_type() == 'cnn':
-        return load_prediction(dataset, aoi_id, year, month)
-    else:
-        if config.input_sensor == 'sentinel1':
-            return load_sentinel1(dataset, aoi_id, year, month, config.input_band())
-        else:
-            return load_sentinel2(dataset, aoi_id, year, month, config.input_band())
-
-
-def load_sentinel1(dataset: str, aoi_id: str, year: int, month: int, band: str):
+def load_sentinel1(dataset: str, aoi_id: str, year: int, month: int) -> np.ndarray:
     file = dataset_helpers.dataset_path(dataset) / aoi_id / 'sentinel1' / f'sentinel1_{aoi_id}_{year}_{month:02d}.tif'
     img, _, _ = geofiles.read_tif(file)
+    return img
+
+
+def load_sentinel1_band(dataset: str, aoi_id: str, year: int, month: int, band: str) -> np.ndarray:
+    img = load_sentinel1(dataset, aoi_id, year, month)
     bands = ['VV', 'VH']
     band_index = bands.index(band)
     img = img[:, :, band_index]
     return img
-
-
-def load_sentinel2(dataset: str, aoi_id: str, year: int, month: int, band: str):
-    file = dataset_helpers.dataset_path(dataset) / aoi_id / 'sentinel2' / f'sentinel2_{aoi_id}_{year}_{month:02d}.tif'
-    img, _, _ = geofiles.read_tif(file)
-    bands = ['B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B8', 'B8A', 'B11', 'B12']
-    band_index = bands.index(band)
-    img = img[:, :, band_index]
-    return img
-
-
-def load_prediction_raw(dataset: str, aoi_id: str, year: int, month: int, config_name: str) -> np.ndarray:
-    path = dataset_helpers.dataset_path(dataset) / aoi_id / config_name
-    pred_file = path / f'pred_{aoi_id}_{year}_{month:02d}.tif'
-    pred, _, _ = geofiles.read_tif(pred_file)
-    pred = np.squeeze(pred)
-    return pred
-
-
-def load_prediction(dataset: str, aoi_id: str, year: int, month: int) -> np.ndarray:
-    pred = load_prediction_raw(dataset, aoi_id, year, month, config.config_name())
-    return pred
-
-
-def load_prediction_in_timeseries(dataset: str, aoi_id: str, index: int, include_masked_data: bool,
-                                  ignore_bad_data: bool = True) -> np.ndarray:
-    dates = dataset_helpers.get_timeseries(dataset, aoi_id, include_masked_data, ignore_bad_data)
-    year, month, *_ = dates[index]
-    pred = load_prediction(dataset, aoi_id, year, month)
-    return pred
-
-
-def prediction_is_available(dataset: str, aoi_id: str, year: int, month: int) -> bool:
-    path = dataset_helpers.dataset_path(dataset) / aoi_id / dataset_helpers.config_name()
-    pred_file = path / f'pred_{aoi_id}_{year}_{month:02d}.tif'
-    return pred_file.exists()
 
 
 def load_input_timeseries(dataset: str, aoi_id: str, include_masked_data: bool = False,

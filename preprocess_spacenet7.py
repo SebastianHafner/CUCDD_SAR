@@ -1,5 +1,5 @@
 from pathlib import Path
-from utils import geofiles, dataset_helpers
+from utils import geofiles, dataset_helpers, config
 from tqdm import tqdm
 import numpy as np
 
@@ -15,14 +15,14 @@ def get_date(label_file: Path) -> tuple:
 
 # helper function to check if mask exists for time stamp
 def has_mask(aoi_id: str, year: int, month: int) -> bool:
-    mask_path = dataset_helpers.spacenet7_path() / 'train' / aoi_id / 'UDM_masks'
+    mask_path = config.spacenet7_path() / 'train' / aoi_id / 'UDM_masks'
     mask_file = mask_path / f'global_monthly_{year}_{month:02d}_mosaic_{aoi_id}_UDM.tif'
     return mask_file.exists()
 
 
 # creates dict with aoi_ids as keys and with timestamps of SpaceNet7 dataset as values
 def assemble_spacenet7_timestamps():
-    dataset_path = dataset_helpers.spacenet7_path() / 'train'
+    dataset_path = config.spacenet7_path() / 'train'
     data = {}
     aoi_paths = [f for f in dataset_path.iterdir() if f.is_dir()]
 
