@@ -118,8 +118,7 @@ def generate_spacenet7_metadata_file():
     missing_aois = dataset_helpers.missing_aois()
 
     data = {
-        's1_bands': ['VV', 'VH'],
-        's2_bands': ['B2', 'B3', 'B4', 'B5', 'B6', 'B6', 'B8', 'B8A', 'B11', 'B12'],
+        'bands': ['VV', 'VH'],
         'yx_sizes': {},
         'aois': {}
     }
@@ -138,9 +137,8 @@ def generate_spacenet7_metadata_file():
             year, month, mask = timestamp
 
             # check if satellite data is ok for timestamp in aoi based on bad data file
-            s1 = False if i in bad_data[aoi_id]['S1'] else True
-            s2 = False if i in bad_data[aoi_id]['S2'] else True
-            timestamp_data = [year, month, mask, s1, s2]
+            s1 = False if i in bad_data[aoi_id] else True
+            timestamp_data = [year, month, mask, s1]
             aoi_data.append(timestamp_data)
 
             if not yx_size_set and s1:
@@ -152,7 +150,7 @@ def generate_spacenet7_metadata_file():
 
         data['aois'][aoi_id] = aoi_data
 
-    output_file = dataset_helpers.dataset_path('spacenet7') / f'metadata.json'
+    output_file = dataset_helpers.dataset_path('spacenet7') / f'cucdd_sar_metadata.json'
     geofiles.write_json(output_file, data)
 
 

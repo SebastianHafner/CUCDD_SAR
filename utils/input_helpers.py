@@ -23,11 +23,11 @@ def load_input_timeseries(dataset: str, aoi_id: str, include_masked_data: bool =
 
     yx_shape = dataset_helpers.get_yx_size(dataset, aoi_id)
     n = len(dates)
-    pred_ts = np.zeros((*yx_shape, n + 2 * ts_extension), dtype=np.float32)
+    pred_ts = np.zeros((dataset_helpers.get_n_bands(dataset), *yx_shape, n + 2 * ts_extension), dtype=np.float32)
 
     # fill in time series value
     for i, (year, month, *_) in enumerate(dates):
-        pred = load_input(dataset, aoi_id, year, month)
+        pred = load_sentinel1(dataset, aoi_id, year, month)
         pred_ts[:, :, i + ts_extension] = pred
 
     # padd start and end

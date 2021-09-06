@@ -48,7 +48,7 @@ def timestamps(dataset: str) -> dict:
 
 # metadata functions
 def oscd_metadata() -> dict:
-    metadata_file = dataset_path('oscd') / 'metadata.json'
+    metadata_file = dataset_path('oscd') / 'cucdd_sar_metadata.json'
     if not metadata_file.exists():
         preprocess_oscd.generate_oscd_metadata_file()
     assert (metadata_file.exists())
@@ -57,7 +57,7 @@ def oscd_metadata() -> dict:
 
 
 def spacenet7_metadata() -> dict:
-    metadata_file = dataset_path('spacenet7') / 'metadata.json'
+    metadata_file = dataset_path('spacenet7') / 'cucdd_sar_metadata.json'
     if not metadata_file.exists():
         preprocess_spacenet7.generate_spacenet7_metadata_file()
     assert (metadata_file.exists())
@@ -99,16 +99,16 @@ def date2index(date: list) -> int:
 def get_timeseries(dataset: str, aoi_id: str, include_masked_data: bool = True, ignore_bad_data: bool = True) -> list:
     aoi_md = aoi_metadata(dataset, aoi_id)
 
-    timeseries = [[y, m, mask, s1, s2] for y, m, mask, s1, s2 in aoi_md if s1]
+    timeseries = [[y, m, mask, s1] for y, m, mask, s1 in aoi_md if s1]
 
     if include_masked_data:
         # trim time series at beginning and end such that it starts and ends with an unmasked timestamp
-        unmasked_indices = [i for i, (_, _, mask, *_) in enumerate(timeseries) if not mask]
+        unmasked_indices = [i for i, (_, _, mask, _) in enumerate(timeseries) if not mask]
         min_unmasked, max_unmasked = min(unmasked_indices), max(unmasked_indices)
         timeseries = timeseries[min_unmasked:max_unmasked + 1]
     else:
         # remove all masked timestamps
-        timeseries = [[y, m, mask, s1, s2] for y, m, mask, s1, s2 in aoi_md if not mask]
+        timeseries = [[y, m, mask, s1] for y, m, mask, s1 in aoi_md if not mask]
 
     return timeseries
 
@@ -159,7 +159,14 @@ def get_yx_size(dataset: str, aoi_id: str) -> tuple:
     return md['yx_sizes'][aoi_id]
 
 
-def date2str(date: list):
+def date2str(date: list) -> str:
     year, month, *_ = date
     return f'{year-2000:02d}-{month:02d}'
+
+
+def get_n_bands(dataset: str) -> int:
+    md = metadata(dataset)
+    return len(md['bands'])
+
+
 
