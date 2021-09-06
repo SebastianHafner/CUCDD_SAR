@@ -1,7 +1,7 @@
 import numpy as np
 from skimage.filters import threshold_otsu, threshold_local
 from abc import ABC, abstractmethod
-from utils import input_helpers, dataset_helpers, geofiles, label_helpers, config
+from utils import sentinel1_helpers, dataset_helpers, geofiles, label_helpers, config
 import scipy
 from tqdm import tqdm
 
@@ -34,7 +34,7 @@ class ChangeDatingMethod(ChangeDetectionMethod):
 
 class StepFunctionModel(ChangeDatingMethod):
 
-    def __init__(self, error_multiplier: int = 3, min_prob_diff: float = 0.2, min_segment_length: int = 2,
+    def __init__(self, band: str, error_multiplier: int = 3, min_diff: float = 0.2, min_segment_length: int = 2,
                  noise_reduction: bool = True):
         super().__init__('stepfunction')
         self.fitted_dataset = None
@@ -45,7 +45,7 @@ class StepFunctionModel(ChangeDatingMethod):
         self.length_ts = None
 
         self.error_multiplier = error_multiplier
-        self.min_prob_diff = min_prob_diff
+        self.min_diff = min_diff
         self.min_segment_length = min_segment_length
         self.noise_reduction = noise_reduction
 
@@ -56,14 +56,14 @@ class StepFunctionModel(ChangeDatingMethod):
         timeseries = dataset_helpers.get_timeseries(dataset, aoi_id, config.include_masked())
         self.length_ts = len(timeseries)
 
-        probs_cube = input_helpers.load_input_timeseries(dataset, aoi_id, config.include_masked())
+        data_cube = sentinel1_helpers.load_sentinel1_timeseries(dataset, aoi_id, config.include_masked())
 
         errors = []
         mean_diffs = []
 
         # compute mse for stable fit
-        mean_prob = np.mean(probs_cube, axis=-1)
-        pred_prob_stable = np.repeat(mean_prob[:, :, np.newaxis], len(timeseries), axis=-1)
+        mean = np.mean(data_cube, axis=-1)
+        pred_prob_stable = np.repeat(mean[:, :, np.newaxis], len(timeseries), axis=-1)
         error_stable = self._mse(probs_cube, pred_prob_stable)
 
         # break point detection

@@ -5,7 +5,7 @@
       <paths name="shafner@king.csc.kth.se:22">
         <serverdata>
           <mappings>
-            <mapping deploy="/home/shafner/continuous_urban_change_detection" local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/home/shafner/CUCDD_SAR" local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>
