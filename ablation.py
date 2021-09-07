@@ -1,9 +1,12 @@
 from tqdm import tqdm
+import numpy as np
+from utils import dataset_helpers, config, label_helpers, metrics, geofiles
+import change_detection_models as cd_models
 
 
-def quantitative_testing_dataset(model: cd_models.ChangeDetectionMethod):
+def quanitative_evaluation(model: cd_models.ChangeDetectionMethod) -> tuple:
     preds, gts = [], []
-    for aoi_id in tqdm(dataset_helpers.get_aoi_ids()):
+    for aoi_id in dataset_helpers.get_aoi_ids():
         if dataset_helpers.length_timeseries(aoi_id, config.include_masked()) > 6:
             pred = model.change_detection(aoi_id)
             preds.append(pred.flatten())
@@ -18,14 +21,32 @@ def quantitative_testing_dataset(model: cd_models.ChangeDetectionMethod):
     recall = metrics.compute_recall(preds, gts)
     f1 = metrics.compute_f1_score(preds, gts)
 
-    print(f'F1: {f1:.3f} - P: {precision:.3f} - R: {recall:.3f}')
+    return f1, precision, recall
 
 
-def ablation1(error_multiplier: float, min_diff_range: tuple, step_size: float, band: str = 'VV'):
-    min_diff_candidates = np.range(*min_diff_range, step_size)
-    for min_diff_candidate in tqdm(min_diff_candidates):
-        sf = cd_models.StepFunctionModel(band, error_multiplier=error_multiplier, min_diff=min_diff_candidate,
-                                         min_segment_length=2)
+def ablation1(error_multiplier: int, min_diff_range: tuple, step_size: float, band: str = 'VV'):
+    file = config.root_path() / 'ablation' / f'ablation1_{band}_{error_multiplier}.json'
+
+    if file.exists():
+        ablation_data = geofiles.load_json(file)
+    else:
+
+        ablation_data = {
+            'min_diff_range': min_diff_range,
+            'step_size': step_size,
+            'data': []
+        }
+
+        min_diff_candidates = np.arange(*min_diff_range, step_size)
+        print(min_diff_candidates)
+        for min_diff_candidate in tqdm(min_diff_candidates):
+            sf = cd_models.StepFunctionModel(band, error_multiplier=error_multiplier, min_diff=min_diff_candidate,
+                                             min_segment_length=2)
+            f1, precision, recall = quanitative_evaluation(sf)
+            ablation_data['data'].append((f1, precision, recall))
+
+        geofiles.write_json(file, ablation_data)
+
 
 
 def ablation2(min_diff: float, error_multiplier_range: tuple, step_size: float, band: str = 'VV'):
@@ -33,5 +54,6 @@ def ablation2(min_diff: float, error_multiplier_range: tuple, step_size: float, 
 
 
 if __name__ == '__main__':
-    pass
+    ablation1(3, min_diff_range=(0, 11), step_size=1)
+
 
