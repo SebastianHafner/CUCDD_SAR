@@ -3,7 +3,7 @@ import yaml
 
 
 def settings() -> dict:
-    with open(str(Path.cwd() / 'settings.yaml')) as file:
+    with open(str(Path('/home/shafner/CUCDD_SAR/settings.yaml'))) as file:
         s = yaml.load(file, Loader=yaml.FullLoader)
     return s
 

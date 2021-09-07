@@ -94,7 +94,7 @@ def run_change_detection_inference(model: cd_models.ChangeDetectionMethod, datas
 
 
 if __name__ == '__main__':
-    sf = cd_models.StepFunctionModel('VV', error_multiplier=3, min_diff=0.2, min_segment_length=2)
+    sf = cd_models.StepFunctionModel('VV', error_multiplier=2, min_diff=2, min_segment_length=2, noise_reduction=True)
     for i, aoi_id in enumerate(tqdm(dataset_helpers.get_aoi_ids())):
         if dataset_helpers.length_timeseries(aoi_id, config.include_masked()) > 6:
             qualitative_testing(sf, aoi_id, save_plot=False, sensor='sentinel2')

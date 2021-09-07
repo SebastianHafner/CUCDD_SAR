@@ -1,7 +1,6 @@
 PATHS:
   ROOT_PATH: '/storage/shafner/continuous_urban_change_detection'
   SPACENET7_PATH: '/storage/shafner/spacenet7'  # this is the original SpaceNet7 dataset
-  OSCD_PATH: '/storage/shafner/urban_change_detection/OSCD_dataset'  # this is the original OSCD dataset
 
 DATASET_NAMES:
   SPACENET7: 'spacenet7_s1s2_dataset_v3'

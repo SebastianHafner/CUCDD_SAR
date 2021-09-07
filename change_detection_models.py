@@ -80,8 +80,8 @@ class StepFunctionModel(ChangeDatingMethod):
             # maybe use absolute value here
             mean_diffs.append(mean_postsegment - mean_presegment)
 
-            pred_probs_break = np.concatenate((pred_presegment, pred_postsegment), axis=-1)
-            mse_break = self._mse(data_cube, pred_probs_break)
+            pred_break = np.concatenate((pred_presegment, pred_postsegment), axis=-1)
+            mse_break = self._mse(data_cube, pred_break)
             errors.append(mse_break)
 
         errors = np.stack(errors, axis=-1)

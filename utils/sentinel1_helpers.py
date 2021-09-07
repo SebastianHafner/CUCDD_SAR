@@ -10,7 +10,7 @@ def convert_range(img: np.ndarray, old_min: float, old_max: float, new_min: floa
 def load_sentinel1(aoi_id: str, year: int, month: int) -> np.ndarray:
     file = dataset_helpers.dataset_path() / aoi_id / 'sentinel1' / f'sentinel1_{aoi_id}_{year}_{month:02d}.tif'
     img, _, _ = geofiles.read_tif(file)
-    img = convert_range(img, 0, 1, 0, 25)
+    img = convert_range(img, 0, 1, -25, 0)
     return img
 
 
@@ -67,7 +67,6 @@ def get_band_index(band: str) -> int:
 
 
 if __name__ == '__main__':
-    # predictions = load_prediction_timeseries('spacenet7', 'L15-0331E-1257N_1327_3160_13')
-    a = np.array([False, np.NaN])
-    a = np.ma.array(a, mask=np.isnan(a))
-    print(np.any(a))
+    img = np.array([0, 0.2, 0.5, 1])
+    img_new = convert_range(img, 0, 1, -25, 0)
+    print(img_new)
