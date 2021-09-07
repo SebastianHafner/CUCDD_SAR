@@ -8,12 +8,12 @@ from tqdm import tqdm
 
 class ChangeDetectionMethod(ABC):
 
-    def __init__(self, name: str, config_name: str = None):
+    def __init__(self, name: str):
         self.name = name
 
     @ abstractmethod
     # returns binary array of changes
-    def change_detection(self, dataset: str, aoi_id: str) -> np.ndarray:
+    def change_detection(self, aoi_id: str) -> np.ndarray:
         pass
 
 
@@ -24,7 +24,7 @@ class ChangeDatingMethod(ChangeDetectionMethod):
 
     @ abstractmethod
     # returns int array where numbers correspond to change date (index in dates list)
-    def change_dating(self, dataset: str, aoi_id: str) -> np.ndarray:
+    def change_dating(self, aoi_id: str) -> np.ndarray:
         pass
 
     @staticmethod
@@ -37,52 +37,51 @@ class StepFunctionModel(ChangeDatingMethod):
     def __init__(self, band: str, error_multiplier: int = 3, min_diff: float = 0.2, min_segment_length: int = 2,
                  noise_reduction: bool = True):
         super().__init__('stepfunction')
-        self.fitted_dataset = None
         self.fitted_aoi = None
         # index when changed occurred in the time series
         # (no change is index 0 and length_ts for non-urban and urban, respectively)
         self.cached_fit = None
         self.length_ts = None
-
+        self.band = band
         self.error_multiplier = error_multiplier
         self.min_diff = min_diff
         self.min_segment_length = min_segment_length
         self.noise_reduction = noise_reduction
 
-    def _fit(self, dataset: str, aoi_id: str):
-        if dataset == self.fitted_dataset and self.fitted_aoi == aoi_id:
+    def _fit(self, aoi_id: str):
+        if self.fitted_aoi == aoi_id:
             return
 
-        timeseries = dataset_helpers.get_timeseries(dataset, aoi_id, config.include_masked())
+        timeseries = dataset_helpers.get_timeseries(aoi_id, config.include_masked())
         self.length_ts = len(timeseries)
 
-        data_cube = sentinel1_helpers.load_sentinel1_timeseries(dataset, aoi_id, config.include_masked())
+        data_cube = sentinel1_helpers.load_sentinel1_band_timeseries(aoi_id, self.band, config.include_masked())
 
         errors = []
         mean_diffs = []
 
         # compute mse for stable fit
         mean = np.mean(data_cube, axis=-1)
-        pred_prob_stable = np.repeat(mean[:, :, np.newaxis], len(timeseries), axis=-1)
-        error_stable = self._mse(probs_cube, pred_prob_stable)
+        pred_stable = np.repeat(mean[:, :, np.newaxis], len(timeseries), axis=-1)
+        error_stable = self._mse(data_cube, pred_stable)
 
         # break point detection
         for i in range(self.min_segment_length, len(timeseries) - self.min_segment_length):
 
             # compute predicted
-            probs_presegment = probs_cube[:, :, :i]
-            mean_prob_presegment = np.mean(probs_presegment, axis=-1)
-            pred_probs_presegment = np.repeat(mean_prob_presegment[:, :, np.newaxis], i, axis=-1)
+            presegment = data_cube[:, :, :i]
+            mean_presegment = np.mean(presegment, axis=-1)
+            pred_presegment = np.repeat(mean_presegment[:, :, np.newaxis], i, axis=-1)
 
-            probs_postsegment = probs_cube[:, :, i:]
-            mean_prob_postsegment = np.mean(probs_postsegment, axis=-1)
-            pred_probs_postsegment = np.repeat(mean_prob_postsegment[:, :, np.newaxis], len(timeseries) - i, axis=-1)
+            postsegment = data_cube[:, :, i:]
+            mean_postsegment = np.mean(postsegment, axis=-1)
+            pred_postsegment = np.repeat(mean_postsegment[:, :, np.newaxis], len(timeseries) - i, axis=-1)
 
             # maybe use absolute value here
-            mean_diffs.append(mean_prob_postsegment - mean_prob_presegment)
+            mean_diffs.append(mean_postsegment - mean_presegment)
 
-            pred_probs_break = np.concatenate((pred_probs_presegment, pred_probs_postsegment), axis=-1)
-            mse_break = self._mse(probs_cube, pred_probs_break)
+            pred_probs_break = np.concatenate((pred_presegment, pred_postsegment), axis=-1)
+            mse_break = self._mse(data_cube, pred_probs_break)
             errors.append(mse_break)
 
         errors = np.stack(errors, axis=-1)
@@ -94,7 +93,7 @@ class StepFunctionModel(ChangeDatingMethod):
         mean_diffs = np.stack(mean_diffs, axis=-1)
         m, n = mean_diffs.shape[:2]
         mean_diff = mean_diffs[np.arange(m)[:, None], np.arange(n), best_fit]
-        change = np.logical_and(change_candidate, mean_diff > self.min_prob_diff)
+        change = np.logical_and(change_candidate, mean_diff > self.min_diff)
 
         if self.noise_reduction:
             kernel = np.ones((3, 3), dtype=np.uint8)
@@ -103,20 +102,18 @@ class StepFunctionModel(ChangeDatingMethod):
             change[noise] = 0
 
         self.cached_fit = np.where(change, best_fit + self.min_segment_length, 0)
-
-        self.fitted_dataset = dataset
         self.fitted_aoi = aoi_id
 
-    def change_detection(self, dataset: str, aoi_id: str) -> np.ndarray:
-        self._fit(dataset, aoi_id)
+    def change_detection(self, aoi_id: str) -> np.ndarray:
+        self._fit(aoi_id)
 
         # convert to change date product to change detection (0 and length_ts is no change)
         change = self.cached_fit != 0
 
         return np.array(change).astype(np.bool)
 
-    def change_dating(self, dataset: str, aoi_id: str, config_name: str = None) -> np.ndarray:
-        self._fit(dataset, aoi_id)
+    def change_dating(self, aoi_id: str, config_name: str = None) -> np.ndarray:
+        self._fit(aoi_id)
 
         return np.array(self.cached_fit).astype(np.uint8)
 

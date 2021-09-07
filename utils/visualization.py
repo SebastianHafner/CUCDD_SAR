@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import matplotlib as mpl
-from utils import geofiles, dataset_helpers, label_helpers, mask_helpers, input_helpers, config
+from utils import geofiles, dataset_helpers, label_helpers, mask_helpers, sentinel1_helpers, config
 import numpy as np
 from pathlib import Path
 from matplotlib import cm
@@ -44,11 +44,10 @@ class ChangeConfidenceColorMap(object):
         return self.cmap
 
 
-def plot_optical(ax, dataset: str, aoi_id: str, year: int, month: int, vis: str = 'true_color',
-                 rescale_factor: float = 0.4):
+def plot_optical(ax, aoi_id: str, year: int, month: int, vis: str = 'true_color', rescale_factor: float = 0.4):
     ax.set_xticks([])
     ax.set_yticks([])
-    file = dataset_helpers.dataset_path(dataset) / aoi_id / 'sentinel2' / f'sentinel2_{aoi_id}_{year}_{month:02d}.tif'
+    file = dataset_helpers.dataset_path() / aoi_id / 'sentinel2' / f'sentinel2_{aoi_id}_{year}_{month:02d}.tif'
     if not file.exists():
         return
     img, _, _ = geofiles.read_tif(file)
@@ -58,10 +57,10 @@ def plot_optical(ax, dataset: str, aoi_id: str, year: int, month: int, vis: str 
     ax.imshow(bands)
 
 
-def plot_sar(ax, dataset: str, aoi_id: str, year: int, month: int, vis: str = 'VV'):
+def plot_sar(ax, aoi_id: str, year: int, month: int, vis: str = 'VV'):
     ax.set_xticks([])
     ax.set_yticks([])
-    file = dataset_helpers.dataset_path(dataset) / aoi_id / 'sentinel1' / f'sentinel1_{aoi_id}_{year}_{month:02d}.tif'
+    file = dataset_helpers.dataset_path() / aoi_id / 'sentinel1' / f'sentinel1_{aoi_id}_{year}_{month:02d}.tif'
     if not file.exists():
         return
     img, _, _ = geofiles.read_tif(file)
@@ -83,8 +82,8 @@ def plot_buildings(ax, aoi_id: str, year: int, month: int):
     ax.set_yticks([])
 
 
-def plot_change_label(ax, dataset, aoi_id: str, include_masked_data: bool = False):
-    change = label_helpers.generate_change_label(dataset, aoi_id, include_masked_data)
+def plot_change_label(ax, aoi_id: str, include_masked_data: bool = False):
+    change = label_helpers.generate_change_label(aoi_id, include_masked_data)
     ax.imshow(change, cmap='gray', vmin=0, vmax=1)
     ax.set_xticks([])
     ax.set_yticks([])
