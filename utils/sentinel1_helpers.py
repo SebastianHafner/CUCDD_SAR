@@ -8,7 +8,7 @@ def convert_range(img: np.ndarray, old_min: float, old_max: float, new_min: floa
 
 
 def load_sentinel1(aoi_id: str, year: int, month: int) -> np.ndarray:
-    file = dataset_helpers.dataset_path() / aoi_id / 'sentinel1' / f'sentinel1_{aoi_id}_{year}_{month:02d}.tif'
+    file = config.dataset_path() / aoi_id / 'sentinel1' / f'sentinel1_{aoi_id}_{year}_{month:02d}.tif'
     img, _, _ = geofiles.read_tif(file)
     img = convert_range(img, 0, 1, -25, 0)
     return img
@@ -22,8 +22,8 @@ def load_sentinel1_band(aoi_id: str, year: int, month: int, band: str) -> np.nda
     return img
 
 
-def load_sentinel1_timeseries(aoi_id: str, include_masked_data: bool = False, ts_extension: int = 0) -> np.ndarray:
-    dates = dataset_helpers.get_timeseries(aoi_id, include_masked_data)
+def load_sentinel1_timeseries(aoi_id: str, ts_extension: int = 0) -> np.ndarray:
+    dates = dataset_helpers.get_timeseries(aoi_id)
 
     yx_shape = dataset_helpers.get_yx_size(aoi_id)
     n = len(dates)
@@ -48,9 +48,8 @@ def load_sentinel1_timeseries(aoi_id: str, include_masked_data: bool = False, ts
     return s1_ts
 
 
-def load_sentinel1_band_timeseries(aoi_id: str, band: str, include_masked_data: bool = False,
-                                   ts_extension: int = 0) -> np.ndarray:
-    s1_ts = load_sentinel1_timeseries(aoi_id, include_masked_data, ts_extension)
+def load_sentinel1_band_timeseries(aoi_id: str, band: str, ts_extension: int = 0) -> np.ndarray:
+    s1_ts = load_sentinel1_timeseries(aoi_id, ts_extension)
     band_index = get_band_index(band)
 
     return s1_ts[:, :, band_index, ]

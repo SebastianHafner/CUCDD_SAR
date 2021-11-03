@@ -52,10 +52,10 @@ class StepFunctionModel(ChangeDatingMethod):
         if self.fitted_aoi == aoi_id:
             return
 
-        timeseries = dataset_helpers.get_timeseries(aoi_id, config.include_masked())
+        timeseries = dataset_helpers.get_timeseries(aoi_id)
         self.length_ts = len(timeseries)
 
-        data_cube = sentinel1_helpers.load_sentinel1_band_timeseries(aoi_id, self.band, config.include_masked())
+        data_cube = sentinel1_helpers.load_sentinel1_band_timeseries(aoi_id, self.band)
 
         errors = []
         mean_diffs = []

@@ -3,16 +3,8 @@ from utils import geofiles, config
 import preprocess_spacenet7
 
 
-def dataset_path() -> Path:
-    return config.root_path() / dataset_name()
-
-
-def dataset_name() -> str:
-    return config.spacenet7_dataset_name()
-
-
 def bad_data() -> dict:
-    bad_data_file = Path.cwd() / 'bad_data' / f'bad_data_{dataset_name()}.json'
+    bad_data_file = Path.cwd() / 'bad_data' / f'bad_data_{config.dataset_name()}.json'
     bad_data = geofiles.load_json(bad_data_file)
     return bad_data
 
@@ -24,7 +16,7 @@ def missing_aois() -> list:
 
 
 def timestamps() -> dict:
-    timestamps_file = dataset_path() / 'spacenet7_timestamps.json'
+    timestamps_file = config.dataset_path() / 'spacenet7_timestamps.json'
     if not timestamps_file.exists():
         preprocess_spacenet7.assemble_spacenet7_timestamps()
     assert(timestamps_file.exists())
@@ -33,7 +25,7 @@ def timestamps() -> dict:
 
 
 def metadata() -> dict:
-    metadata_file = dataset_path() / 'cucdd_sar_metadata.json'
+    metadata_file = config.dataset_path() / 'cucdd_sar_metadata.json'
     if not metadata_file.exists():
         preprocess_spacenet7.generate_spacenet7_metadata_file()
     assert (metadata_file.exists())
@@ -68,25 +60,19 @@ def date2index(date: list) -> int:
 
 
 # include masked data is only
-def get_timeseries(aoi_id: str, include_masked_data: bool = True) -> list:
+def get_timeseries(aoi_id: str) -> list:
     aoi_md = aoi_metadata(aoi_id)
-
     timeseries = [[y, m, mask, s1] for y, m, mask, s1 in aoi_md if s1]
 
-    if include_masked_data:
-        # trim time series at beginning and end such that it starts and ends with an unmasked timestamp
-        unmasked_indices = [i for i, (_, _, mask, _) in enumerate(timeseries) if not mask]
-        min_unmasked, max_unmasked = min(unmasked_indices), max(unmasked_indices)
-        timeseries = timeseries[min_unmasked:max_unmasked + 1]
-    else:
-        # remove all masked timestamps
-        timeseries = [[y, m, mask, s1] for y, m, mask, s1 in aoi_md if not mask]
-
+    # trim time series at beginning and end such that it starts and ends with an unmasked timestamp
+    unmasked_indices = [i for i, (_, _, mask, _) in enumerate(timeseries) if not mask]
+    min_unmasked, max_unmasked = min(unmasked_indices), max(unmasked_indices)
+    timeseries = timeseries[min_unmasked:max_unmasked + 1]
     return timeseries
 
 
-def length_timeseries(aoi_id: str, include_masked_data: bool = False) -> int:
-    ts = get_timeseries(aoi_id, include_masked_data)
+def length_timeseries(aoi_id: str) -> int:
+    ts = get_timeseries(aoi_id)
     return len(ts)
 
 
@@ -104,12 +90,19 @@ def get_date_from_index(index: int, aoi_id: str, include_masked_data: bool = Fal
     return year, month
 
 
-def get_aoi_ids(exclude_missing: bool = True) -> list:
+def get_aoi_ids(exclude_missing: bool = True, min_timeseries_length: int = None) -> list:
     if config.subset_activated():
         aoi_ids = config.subset_aois()
     else:
         ts = timestamps()
         aoi_ids = [aoi_id for aoi_id in ts.keys() if not (exclude_missing and aoi_id in missing_aois())]
+    if min_timeseries_length is not None:
+        all_aoi_ids = aoi_ids
+        aoi_ids = []
+        for aoi_id in all_aoi_ids:
+            ts_length = length_timeseries(aoi_id)
+            if ts_length >= min_timeseries_length:
+                aoi_ids.append(aoi_id)
     return sorted(aoi_ids)
 
 

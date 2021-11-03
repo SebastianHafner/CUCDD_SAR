@@ -113,8 +113,8 @@ def assemble_spacenet7_masks():
 
 def generate_spacenet7_metadata_file():
 
-    timestamps = dataset_helpers.spacenet7_timestamps()
-    bad_data = dataset_helpers.bad_data('spacenet7')
+    timestamps = dataset_helpers.timestamps()
+    bad_data = dataset_helpers.bad_data()
     missing_aois = dataset_helpers.missing_aois()
 
     data = {
@@ -142,7 +142,7 @@ def generate_spacenet7_metadata_file():
             aoi_data.append(timestamp_data)
 
             if not yx_size_set and s1:
-                s1_path = dataset_helpers.dataset_path('spacenet7') / aoi_id / 'sentinel1'
+                s1_path = config.dataset_path() / aoi_id / 'sentinel1'
                 s1_file = s1_path / f'sentinel1_{aoi_id}_{year}_{month:02d}.tif'
                 arr, _, _ = geofiles.read_tif(s1_file)
                 data['yx_sizes'][aoi_id] = (arr.shape[0], arr.shape[1])
@@ -150,7 +150,7 @@ def generate_spacenet7_metadata_file():
 
         data['aois'][aoi_id] = aoi_data
 
-    output_file = dataset_helpers.dataset_path('spacenet7') / f'cucdd_sar_metadata.json'
+    output_file = config.dataset_path() / f'cucdd_sar_metadata.json'
     geofiles.write_json(output_file, data)
 
 

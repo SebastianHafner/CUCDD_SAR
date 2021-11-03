@@ -47,7 +47,7 @@ class ChangeConfidenceColorMap(object):
 def plot_optical(ax, aoi_id: str, year: int, month: int, vis: str = 'true_color', rescale_factor: float = 0.4):
     ax.set_xticks([])
     ax.set_yticks([])
-    file = dataset_helpers.dataset_path() / aoi_id / 'sentinel2' / f'sentinel2_{aoi_id}_{year}_{month:02d}.tif'
+    file = config.dataset_path() / aoi_id / 'sentinel2' / f'sentinel2_{aoi_id}_{year}_{month:02d}.tif'
     if not file.exists():
         return
     img, _, _ = geofiles.read_tif(file)
@@ -60,7 +60,7 @@ def plot_optical(ax, aoi_id: str, year: int, month: int, vis: str = 'true_color'
 def plot_sar(ax, aoi_id: str, year: int, month: int, vis: str = 'VV'):
     ax.set_xticks([])
     ax.set_yticks([])
-    file = dataset_helpers.dataset_path() / aoi_id / 'sentinel1' / f'sentinel1_{aoi_id}_{year}_{month:02d}.tif'
+    file = config.dataset_path() / aoi_id / 'sentinel1' / f'sentinel1_{aoi_id}_{year}_{month:02d}.tif'
     if not file.exists():
         return
     img, _, _ = geofiles.read_tif(file)
@@ -82,16 +82,16 @@ def plot_buildings(ax, aoi_id: str, year: int, month: int):
     ax.set_yticks([])
 
 
-def plot_change_label(ax, aoi_id: str, include_masked_data: bool = False):
-    change = label_helpers.generate_change_label(aoi_id, include_masked_data)
+def plot_change_label(ax, aoi_id: str):
+    change = label_helpers.generate_change_label(aoi_id)
     ax.imshow(change, cmap='gray', vmin=0, vmax=1)
     ax.set_xticks([])
     ax.set_yticks([])
 
 
-def plot_change_date_label(ax, aoi_id: str, include_masked_data: bool = False):
-    ts = dataset_helpers.get_timeseries('spacenet7', aoi_id, include_masked_data)
-    change_date_label = label_helpers.generate_change_date_label(aoi_id, include_masked_data)
+def plot_change_date_label(ax, aoi_id: str):
+    ts = dataset_helpers.get_timeseries(aoi_id)
+    change_date_label = label_helpers.generate_change_date_label(aoi_id)
     cmap = DateColorMap(len(ts))
     ax.imshow(change_date_label, cmap=cmap.get_cmap(), vmin=cmap.get_vmin(), vmax=cmap.get_vmax())
     ax.set_xticks([])
@@ -123,7 +123,7 @@ def plot_blackwhite(ax, img: np.ndarray, cmap: str = 'gray'):
 
 
 def plot_classification(ax, pred: np.ndarray, dataset: str, aoi_id: str):
-    label = label_helpers.generate_change_label(dataset, aoi_id, config.include_masked()).astype(np.bool)
+    label = label_helpers.generate_change_label(dataset, aoi_id).astype(np.bool)
     pred = pred.squeeze().astype(np.bool)
     tp = np.logical_and(pred, label)
     fp = np.logical_and(pred, ~label)

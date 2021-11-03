@@ -8,7 +8,7 @@ from tqdm import tqdm
 def qualitative_testing(model: cd_models.ChangeDetectionMethod, aoi_id: str, save_plot: bool = False,
                         color_misclassifications: bool = False, sensor: str = 'sentinel2', show_f1: bool = True):
 
-    dates = dataset_helpers.get_timeseries(aoi_id, config.include_masked())
+    dates = dataset_helpers.get_timeseries(aoi_id)
     start_year, start_month, *_ = dates[0]
     end_year, end_month, *_ = dates[-1]
 
@@ -25,7 +25,7 @@ def qualitative_testing(model: cd_models.ChangeDetectionMethod, aoi_id: str, sav
     axs[0].set_title('S2 Start TS')
     axs[1].set_title('S2 End TS')
 
-    visualization.plot_change_label(axs[2], aoi_id, config.include_masked())
+    visualization.plot_change_label(axs[2], aoi_id)
     axs[2].set_title('Change GT')
 
     change = model.change_detection(aoi_id)
@@ -35,7 +35,7 @@ def qualitative_testing(model: cd_models.ChangeDetectionMethod, aoi_id: str, sav
         visualization.plot_blackwhite(axs[3], change)
     title = 'Change Pred'
     if show_f1:
-        label = label_helpers.generate_change_label(aoi_id, config.include_masked())
+        label = label_helpers.generate_change_label(aoi_id)
         f1 = metrics.compute_f1_score(change.flatten(), label.flatten())
         title = f'{title} (F1 {f1:.3f})'
     axs[3].set_title(title)
@@ -50,7 +50,7 @@ def qualitative_testing(model: cd_models.ChangeDetectionMethod, aoi_id: str, sav
     plt.close(fig)
 
 
-def quantitative_testing(model: cd_models.ChangeDetectionMethod, dataset: str, aoi_id: str):
+def quantitative_testing(model: cd_models.ChangeDetectionMethod, aoi_id: str):
 
     pred = model.change_detection(aoi_id)
     gt = label_helpers.generate_change_label(aoi_id)
@@ -66,10 +66,10 @@ def quantitative_testing(model: cd_models.ChangeDetectionMethod, dataset: str, a
 def quantitative_testing_dataset(model: cd_models.ChangeDetectionMethod):
     preds, gts = [], []
     for aoi_id in tqdm(dataset_helpers.get_aoi_ids()):
-        if dataset_helpers.length_timeseries(aoi_id, config.include_masked()) > 6:
+        if dataset_helpers.length_timeseries(aoi_id) > 6:
             pred = model.change_detection(aoi_id)
             preds.append(pred.flatten())
-            gt = label_helpers.generate_change_label(aoi_id, config.include_masked())
+            gt = label_helpers.generate_change_label(aoi_id)
             gts.append(gt.flatten())
             assert(pred.size == gt.size)
 
@@ -83,10 +83,10 @@ def quantitative_testing_dataset(model: cd_models.ChangeDetectionMethod):
     print(f'F1: {f1:.3f} - P: {precision:.3f} - R: {recall:.3f}')
 
 
-def run_change_detection_inference(model: cd_models.ChangeDetectionMethod, dataset: str):
+def run_change_detection_inference(model: cd_models.ChangeDetectionMethod):
     for aoi_id in tqdm(dataset_helpers.get_aoi_ids()):
-        pred = model.change_detection(dataset, aoi_id)
-        transform, crs = dataset_helpers.get_geo(dataset, aoi_id)
+        pred = model.change_detection(aoi_id)
+        transform, crs = dataset_helpers.get_geo(aoi_id)
         path = config.root_path() / 'inference' / model.name / config.config_name()
         path.mkdir(exist_ok=True)
         file = path / f'change_{aoi_id}.tif'
@@ -94,15 +94,14 @@ def run_change_detection_inference(model: cd_models.ChangeDetectionMethod, datas
 
 
 if __name__ == '__main__':
-    sf = cd_models.StepFunctionModel('VV', error_multiplier=2, min_diff=2, min_segment_length=2, noise_reduction=True)
-    for i, aoi_id in enumerate(tqdm(dataset_helpers.get_aoi_ids())):
-        if dataset_helpers.length_timeseries(aoi_id, config.include_masked()) > 6:
-            qualitative_testing(sf, aoi_id, save_plot=False, sensor='sentinel2')
-            # quantitative_testing(model, ds, aoi_id)
-            pass
+    sf = cd_models.StepFunctionModel('VV', error_multiplier=2, min_diff=5, min_segment_length=2, noise_reduction=True)
+    for i, aoi_id in enumerate(tqdm(dataset_helpers.get_aoi_ids(min_timeseries_length=config.min_timeseries_length()))):
+        qualitative_testing(sf, aoi_id, save_plot=False, sensor='sentinel2')
+        # quantitative_testing(model, ds, aoi_id)
+        pass
 
     # qualitative_testing(model, ds, 'L15-0566E-1185N_2265_3451_13', save_plot=False)
 
-    quantitative_testing_dataset(sf)
+    # quantitative_testing_dataset(sf)
     # quantitative_testing(model, ds, 'L15-0683E-1006N_2732_4164_13')
     # run_change_detection_inference(sf, ds)
