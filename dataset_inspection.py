@@ -1,9 +1,10 @@
 from pathlib import Path
-from utils import geofiles, visualization, dataset_helpers, label_helpers, metrics, mask_helpers, config
-from utils import input_helpers
+from utils import geofiles, visualization, dataset_helpers, label_helpers, metrics, mask_helpers, config, sentinel1_helpers
 import matplotlib.pyplot as plt
 import numpy as np
+import cv2
 from tqdm import tqdm
+FONTSIZE = 16
 
 
 def visualize_satellite_data(dataset: str, aoi_id: str, save_plot: bool = False):
@@ -255,24 +256,92 @@ def print_dataset_size(dataset: str):
     print(n)
 
 
-if __name__ == '__main__':
-    ds = 'spacenet7'
-    for i, aoi_id in enumerate(dataset_helpers.get_aoi_ids(ds)):
-        # produce_satellite_timeseries_cube(ds, aoi_id, 'sentinel1', 'VV')
-        # produce_change_date_label(ds, aoi_id)
-        # visualize_satellite_data(ds, aoi_id, save_plot=True)
-        # show_data_availability(ds, aoi_id)
-        # visualize_all_data(ds, aoi_id, save_plot=True)
-        # visualize_timeseries(ds, aoi_id, config_name=cfg, save_plot=True)
-        # produce_timeseries_cube(ds, aoi_id)
-        pass
+def visualize_pixel_time_series(aoi_id: str, i: int, j: int, offset: int = 50):
+    dates = dataset_helpers.get_timeseries(aoi_id)
+    start_year, start_month, *_ = dates[0]
+    end_year, end_month, *_ = dates[-1]
 
-    # grid = np.array([[0, 0, 0, 0, 1],
-    #                  [0, 0, 0, 0, 1],
-    #                  [0, 0, 0, 0, 1],
-    #                  [1, 1, 1, 1, 1],
-    #                  [1, 1, 1, 1, 1]])
-    #
-    # study_site_mosaic(ds, 'sentinel2', grid=grid)
-    # visualize_timeseries_length(ds, numeric_names=True)
-    print_dataset_size(ds)
+    fig = plt.figure(constrained_layout=True)
+    gs = fig.add_gridspec(3, 4)
+
+    f = config.spacenet7_path() / 'train' / aoi_id / 'images' / f'global_monthly_{start_year}_{start_month:02d}_mosaic_{aoi_id}.tif'
+    img, *_ = geofiles.read_tif(f)
+    m, n, _ = img.shape
+
+    i_range = (i - offset, i + offset)
+    j_range = (j - offset, j + offset)
+    ax1 = fig.add_subplot(gs[0, 0])
+    visualization.plot_planet_monthly_mosaic(ax1, aoi_id, start_year, start_month, i_range=i_range, j_range=j_range,
+                                             marker=(i, j))
+    ax1.set_title(r'Planet $t_1$', fontsize=FONTSIZE)
+    ax1.set_axis_off()
+
+    ax2 = fig.add_subplot(gs[0, 1])
+    visualization.plot_planet_monthly_mosaic(ax2, aoi_id, end_year, end_month, i_range=i_range, j_range=j_range,
+                                             marker=(i, j))
+    ax2.set_title(r'Planet $t_n$', fontsize=FONTSIZE)
+    ax2.set_axis_off()
+
+    ax3 = fig.add_subplot(gs[0, 2])
+    file = config.dataset_path() / aoi_id / 'sentinel1' / f'sentinel1_{aoi_id}_{start_year}_{start_month:02d}.tif'
+    img, _, _ = geofiles.read_tif(file)
+    band = np.clip(img[:, :, 0], 0, 1)
+    band = cv2.resize(band, (m, n), interpolation=cv2.INTER_NEAREST)
+    band = band[i - offset:i + offset, j - offset:j + offset]
+    ax3.imshow(band, cmap='gray')
+    ax3.set_title(r'SAR $t_1$', fontsize=FONTSIZE)
+    ax3.set_axis_off()
+
+    ax4 = fig.add_subplot(gs[0, 3])
+    file = config.dataset_path() / aoi_id / 'sentinel1' / f'sentinel1_{aoi_id}_{end_year}_{end_month:02d}.tif'
+    img, _, _ = geofiles.read_tif(file)
+    band = np.clip(img[:, :, 0], 0, 1)
+    band = cv2.resize(band, (m, n), interpolation=cv2.INTER_NEAREST)
+    band = band[i - offset:i + offset, j - offset:j + offset]
+    ax4.imshow(band, cmap='gray')
+    ax4.set_title(r'SAR $t_2$', fontsize=FONTSIZE)
+    ax4.set_axis_off()
+
+    ax5 = fig.add_subplot(gs[1:, :])
+    # ax5.set_title('Backscatter time series', fontsize=FONTSIZE)
+
+    sar_timeseries = sentinel1_helpers.load_sentinel1_band_timeseries(aoi_id, 'VV')
+    sar_timeseries = cv2.resize(sar_timeseries, (m, n), interpolation=cv2.INTER_NEAREST)
+    pixel_timeseries = sar_timeseries[i, j, ]
+
+    # x positions
+    dates = [(year, month) for year, month, *_ in dataset_helpers.get_timeseries(aoi_id)]
+    x_positions = [year * 12 + month for year, month in dates]
+
+    x_min, x_max = x_positions[0], x_positions[-1]
+
+    ax5.scatter(x_positions, pixel_timeseries, c='k', s=15)
+    ax5.plot(x_positions, pixel_timeseries, c='k', lw=0.5)
+    x_ticks = [x_positions[0], x_positions[len(x_positions) // 2], x_positions[-1]]
+    x_ticklabels = [f'{n // 12}-{n % 12:02d}' for n in x_ticks]
+    ax5.set_xticks(x_ticks)
+    ax5.set_xticklabels(x_ticklabels, fontsize=FONTSIZE)
+    # ax5.set_xlabel('Time', fontsize=FONTSIZE)
+    y_ticks = np.arange(-20, 5, 5)
+    y_ticklabels = [f'{y_tick:.0f}' for y_tick in y_ticks]
+    ax5.set_ylim((-20, 0))
+    ax5.set_yticks(y_ticks)
+    ax5.set_yticklabels(y_ticklabels, fontsize=FONTSIZE)
+    ax5.set_ylabel('Backscatter (dB)', fontsize=FONTSIZE)
+
+    output_file = config.output_path() / f'methodology_plot.png'
+    plt.savefig(output_file, dpi=300, bbox_inches='tight')
+    plt.show()
+    plt.close(fig)
+
+
+def produce_data_qgis(aoi_id: str):
+    sar_timeseries = sentinel1_helpers.load_sentinel1_band_timeseries(aoi_id, 'VV')
+    transform, crs = dataset_helpers.get_geo(aoi_id)
+    file = config.output_path() / f'backscatter_{aoi_id}.tif'
+    geofiles.write_tif(file, sar_timeseries, transform, crs)
+
+
+if __name__ == '__main__':
+    visualize_pixel_time_series('L15-0487E-1246N_1950_3207_13', 110, 118, offset=50)
+    # produce_data_qgis('L15-0487E-1246N_1950_3207_13')

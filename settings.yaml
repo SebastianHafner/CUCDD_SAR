@@ -1,7 +1,7 @@
 PATHS:
   ROOT: 'C:/Users/shafner/repos/continuous_urban_change_detection'
   DATASET: 'C:/Users/shafner/datasets/spacenet7_s1s2_dataset_v3'
-  SPACENET7: '/storage/shafner/spacenet7'  # this is the original SpaceNet7 dataset
+  SPACENET7: 'C:/Users/shafner/datasets/spacenet7'  # this is the original SpaceNet7 dataset
   OUTPUT: 'C:/Users/shafner/continuous_urban_change_detection/output'
 
 DATASET_NAME: 'spacenet7_s1s2_dataset_v3'
@@ -9,7 +9,7 @@ DATASET_NAME: 'spacenet7_s1s2_dataset_v3'
 MIN_TIMESERIES_LENGTH: 5
 
 SUBSET:
-  ACTIVATE: True
+  ACTIVATE: False
   AOI_IDS: [
     'L15-0331E-1257N_1327_3160_13',
     'L15-0357E-1223N_1429_3296_13',

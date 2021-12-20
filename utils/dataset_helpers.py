@@ -107,7 +107,7 @@ def get_aoi_ids(exclude_missing: bool = True, min_timeseries_length: int = None)
 
 
 def get_geo(aoi_id: str) -> tuple:
-    folder = dataset_path() / aoi_id / 'sentinel1'
+    folder = config.dataset_path() / aoi_id / 'sentinel1'
     file = [f for f in folder.glob('**/*') if f.is_file()][0]
     _, transform, crs = geofiles.read_tif(file)
     return transform, crs

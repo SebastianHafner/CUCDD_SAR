@@ -1,5 +1,6 @@
 from utils import geofiles, dataset_helpers, mask_helpers, config
 import numpy as np
+from scipy import signal
 
 
 def load_label(aoi_id: str, year: int, month: int) -> np.ndarray:
@@ -42,7 +43,12 @@ def generate_change_label(aoi_id: str) -> np.ndarray:
     # computing it for spacenet7 (change between first and last label)
     label_start = load_label_in_timeseries(aoi_id, 0)
     label_end = load_label_in_timeseries(aoi_id, -1)
-    change = np.logical_and(label_start == 0, label_end != 0)
+    change = np.logical_and(label_start == 0, label_end == 1)
+
+    # kernel = np.ones((5, 5), dtype=np.uint8)
+    # change_count = signal.convolve2d(change, kernel, mode='same', boundary='fill', fillvalue=0)
+    # noise = change_count < 10
+    # change[noise] = 0
     # change = np.array(label_start != label_end)
     return change.astype(np.uint8)
 

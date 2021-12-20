@@ -45,8 +45,6 @@ class ChangeConfidenceColorMap(object):
 
 
 def plot_optical(ax, aoi_id: str, year: int, month: int, vis: str = 'true_color', rescale_factor: float = 0.4):
-    ax.set_xticks([])
-    ax.set_yticks([])
     file = config.dataset_path() / aoi_id / 'sentinel2' / f'sentinel2_{aoi_id}_{year}_{month:02d}.tif'
     if not file.exists():
         return
@@ -55,11 +53,11 @@ def plot_optical(ax, aoi_id: str, year: int, month: int, vis: str = 'true_color'
     bands = img[:, :, band_indices] / rescale_factor
     bands = bands.clip(0, 1)
     ax.imshow(bands)
-
-
-def plot_sar(ax, aoi_id: str, year: int, month: int, vis: str = 'VV'):
     ax.set_xticks([])
     ax.set_yticks([])
+
+
+def plot_sar(ax, aoi_id: str, year: int, month: int, vis: str = 'VV', i_range: tuple = None, j_range: tuple = None):
     file = config.dataset_path() / aoi_id / 'sentinel1' / f'sentinel1_{aoi_id}_{year}_{month:02d}.tif'
     if not file.exists():
         return
@@ -67,7 +65,13 @@ def plot_sar(ax, aoi_id: str, year: int, month: int, vis: str = 'VV'):
     band_index = 0 if vis == 'VV' else 1
     bands = img[:, :, band_index]
     bands = bands.clip(0, 1)
+    if i_range is not None and j_range is not None:
+        i_start, i_end = i_range
+        j_start, j_end = j_range
+        bands = bands[i_start:i_end, j_start:j_end]
     ax.imshow(bands, cmap='gray')
+    ax.set_xticks([])
+    ax.set_yticks([])
 
 
 def plot_buildings(ax, aoi_id: str, year: int, month: int):
@@ -151,12 +155,12 @@ def plot_change_confidence(ax, change: np.ndarray, confidence: np.ndarray, cmap:
 
 
 def plot_prediction(ax, dataset: str, aoi_id: str, year: int, month: int):
-    ax.set_xticks([])
-    ax.set_yticks([])
     if not input_helpers.prediction_is_available(dataset, aoi_id, year, month):
         return
     pred = input_helpers.load_prediction(dataset, aoi_id, year, month)
     ax.imshow(pred.clip(0, 1), cmap='gray')
+    ax.set_xticks([])
+    ax.set_yticks([])
 
 
 def plot_mask(ax, dataset: str, aoi_id: str, year: int, month: int):
@@ -166,37 +170,23 @@ def plot_mask(ax, dataset: str, aoi_id: str, year: int, month: int):
     ax.set_yticks([])
 
 
-def plot_model_error(ax, method: str, aoi_id: str):
-    file = dataset_helpers.root_path() / 'inference' / method / f'model_error_{aoi_id}.tif'
-    error, _, _ = geofiles.read_tif(file)
-    ax.imshow(error, cmap='OrRd', vmin=0, vmax=0.5)
+def plot_planet_monthly_mosaic(ax, aoi_id: str, year: int, month: int, i_range: tuple = None, j_range: tuple = None,
+                               marker: tuple = None):
+    f = config.spacenet7_path() / 'train' / aoi_id / 'images' / f'global_monthly_{year}_{month:02d}_mosaic_{aoi_id}.tif'
+    img, *_ = geofiles.read_tif(f)
+    if marker is not None:
+        i, j = marker
+        marker_size = 2
+        yes = np.full((marker_size * 2, marker_size * 2, 4), 255)
+        yes[:, :, 1:-1] = 0
+        img[i - marker_size: i + marker_size, j - marker_size: j + marker_size, :] = yes
+    if i_range is not None and j_range is not None:
+        i_start, i_end = i_range
+        j_start, j_end = j_range
+        img = img[i_start:i_end, j_start:j_end, :]
+    ax.imshow(img)
     ax.set_xticks([])
     ax.set_yticks([])
-
-
-def plot_model_error_bar(ax, vmax: float = 0.5):
-    cb_ticks = np.linspace(0, vmax, 5)
-    norm = mpl.colors.Normalize(vmin=0, vmax=vmax)
-    cmap = cm.get_cmap('Reds')
-    cb = mpl.colorbar.ColorbarBase(ax, cmap=cmap, norm=norm, orientation='horizontal', ticks=cb_ticks)
-    cb.set_label('RMSE', fontsize=20)
-
-
-def plot_fit(ax, dates: list, probs: np.ndarray, pred: np.ndarray, change_index: int = None):
-    x = np.array([year * 12 + month for year, month in dates])
-    x_min = np.min(x)
-    x = x - x_min
-    ax.scatter(x, probs, label='data')
-    ax.plot(x, pred, 'k--', label='fit')
-    if change_index is not None:
-        change_year, change_month = dates[change_index]
-        y_change = change_year * 12 + change_month - x_min
-        ax.vlines(y_change, ymin=0, ymax=1, colors=['red'], label='change', linestyles='dashed')
-    x_labels = [f'{str(year)[-2:]}-{month}' for year, month in dates]
-    ax.set_xticks(x)
-    ax.set_xticklabels(x_labels)
-    ax.set_ylim((-0.1, 1.1))
-    ax.legend()
 
 
 if __name__ == '__main__':

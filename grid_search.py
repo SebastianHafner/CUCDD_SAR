@@ -53,8 +53,7 @@ def run_grid_search(em_range: tuple, em_step_size: int, mdb_range: tuple, mdb_st
 
         for i, em_candidate in enumerate(em_candidates):
             for j, mdb_candidate in enumerate(tqdm(mdb_candidates)):
-                model = cd_models.StepFunctionModel('VV', error_multiplier=em_candidate, min_diff=mdb_candidate,
-                                                    min_segment_length=2, noise_reduction=True)
+                model = cd_models.SimpleStepFunctionModel('VV', min_diff=mdb_candidate)
                 f1, precision, recall = quanitative_evaluation(model)
                 ablation_data['data'].append({
                     'index': (i, j),
@@ -104,5 +103,5 @@ def run_grid_search(em_range: tuple, em_step_size: int, mdb_range: tuple, mdb_st
 
 
 if __name__ == '__main__':
-    run_grid_search(em_range=(1, 6), em_step_size=1, mdb_range=(1, 10), mdb_step_size=1, force_run=False)
+    run_grid_search(em_range=(1, 1), em_step_size=1, mdb_range=(2, 8), mdb_step_size=0.5, force_run=False)
 

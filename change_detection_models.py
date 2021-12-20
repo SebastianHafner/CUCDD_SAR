@@ -2,7 +2,7 @@ import numpy as np
 from skimage.filters import threshold_otsu, threshold_local
 from abc import ABC, abstractmethod
 from utils import sentinel1_helpers, dataset_helpers, geofiles, label_helpers, config
-import scipy
+from scipy import signal
 from tqdm import tqdm
 
 
@@ -97,7 +97,7 @@ class StepFunctionModel(ChangeDatingMethod):
 
         if self.noise_reduction:
             kernel = np.ones((3, 3), dtype=np.uint8)
-            change_count = scipy.signal.convolve2d(change, kernel, mode='same', boundary='fill', fillvalue=0)
+            change_count = signal.convolve2d(change, kernel, mode='same', boundary='fill', fillvalue=0)
             noise = change_count == 1
             change[noise] = 0
 
@@ -122,6 +122,99 @@ class StepFunctionModel(ChangeDatingMethod):
         return la * np.e ** (-la * x)
 
 
+class SimpleStepFunctionModel(ChangeDatingMethod):
+
+    def __init__(self, band: str, min_diff: int = 6, kernel_size: int = 3, min_segment_length: int = 2):
+        super().__init__('simplestepfunction')
+        self.fitted_aoi = None
+        # index when changed occurred in the time series
+        # (no change is index 0 and length_ts for non-urban and urban, respectively)
+        self.cached_fit = None
+        self.length_ts = None
+        self.band = band
+        self.min_diff = min_diff
+        self.kernel_size = kernel_size
+        self.min_segment_length = min_segment_length
+
+    def _fit(self, aoi_id: str):
+        if self.fitted_aoi == aoi_id:
+            return
+
+        timeseries = dataset_helpers.get_timeseries(aoi_id)
+        self.length_ts = len(timeseries)
+
+        data_cube_raw = sentinel1_helpers.load_sentinel1_band_timeseries(aoi_id, self.band)
+        kernel = np.full((self.kernel_size, self.kernel_size), fill_value=1 / self.kernel_size ** 2)
+        data_cube = np.empty(data_cube_raw.shape, dtype=np.single)
+        for i in range(self.length_ts):
+            data_cube[:, :, i] = signal.convolve2d(data_cube_raw[:, :, i], kernel, mode='same', boundary='symm')
+
+        mean_diffs, errors = [], []
+
+        # break point detection
+        for i in range(self.min_segment_length, len(timeseries) - self.min_segment_length):
+            # compute predicted
+            presegment = data_cube[:, :, :i]
+            mean_presegment = np.mean(presegment, axis=-1)
+            pred_presegment = np.repeat(mean_presegment[:, :, np.newaxis], i, axis=-1)
+
+            postsegment = data_cube[:, :, i:]
+            mean_postsegment = np.mean(postsegment, axis=-1)
+            pred_postsegment = np.repeat(mean_postsegment[:, :, np.newaxis], len(timeseries) - i, axis=-1)
+
+            mean_diffs.append(mean_postsegment - mean_presegment)
+            pred_break = np.concatenate((pred_presegment, pred_postsegment), axis=-1)
+            mse_break = self._mse(data_cube, pred_break)
+            errors.append(mse_break)
+
+        errors = np.stack(errors, axis=-1)
+        best_fit = np.argmin(errors, axis=-1)
+
+        mean_diffs = np.stack(mean_diffs, axis=-1)
+        m, n = mean_diffs.shape[:2]
+        mean_diff = mean_diffs[np.arange(m)[:, None], np.arange(n), best_fit]
+        change = mean_diff > self.min_diff
+
+        self.cached_fit = np.where(change, best_fit + self.min_segment_length, 0)
+        self.fitted_aoi = aoi_id
+
+    def change_detection(self, aoi_id: str) -> np.ndarray:
+        self._fit(aoi_id)
+
+        # convert to change date product to change detection (0 and length_ts is no change)
+        change = self.cached_fit != 0
+
+        return np.array(change).astype(np.bool)
+
+    def change_dating(self, aoi_id: str, config_name: str = None) -> np.ndarray:
+        self._fit(aoi_id)
+
+        return np.array(self.cached_fit).astype(np.uint8)
+
+
+class LogRatioModel(ChangeDetectionMethod):
+
+    def __init__(self, band: str):
+        super().__init__('logratio')
+        self.length_ts = None
+        self.band = band
+
+    def change_detection(self, aoi_id: str) -> np.ndarray:
+        timeseries = dataset_helpers.get_timeseries(aoi_id)
+        self.length_ts = len(timeseries)
+
+        data_cube = sentinel1_helpers.load_sentinel1_band_timeseries(aoi_id, self.band)
+        sar_start = data_cube[:, :, 0]
+        sar_end = data_cube[:, :, -1]
+        lr = sar_start - sar_end
+
+        thresh = threshold_otsu(lr)
+        change = lr > thresh
+
+        return np.array(change).astype(np.bool)
+
+
 if __name__ == '__main__':
-    model = StepFunctionModel()
-    change = model.change_detection('spacenet7', 'L15-0566E-1185N_2265_3451_13')
+    # model = SimpleStepFunctionModel('VV')
+    model = LogRatioModel('VV')
+    change = model.change_detection('L15-0566E-1185N_2265_3451_13')
